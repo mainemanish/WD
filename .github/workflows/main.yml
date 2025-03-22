@@ -6,30 +6,54 @@ on:
       - main
 
 jobs:
-  build:
+  checkout:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
+  setup-java:
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
     - name: Set up Java (or your environment)
       uses: actions/setup-java@v2
       with:
         java-version: '11'
 
+  build:
+    runs-on: ubuntu-latest
+    needs: setup-java
+    steps:
     - name: Build with Maven
       run: mvn clean install
 
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
     - name: Run Unit Tests
       run: mvn test
 
+  sonar-scan:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
     - name: SonarQube Scan
       run: mvn sonar:sonar -Dsonar.host.url=https://your-sonarqube-url
 
+  nexus-iq-scan:
+    runs-on: ubuntu-latest
+    needs: sonar-scan
+    steps:
     - name: Nexus IQ Scan
       run: mvn org.sonatype.plugins:nexus-iq-maven-plugin:check
 
+  docker:
+    runs-on: ubuntu-latest
+    needs: nexus-iq-scan
+    steps:
     - name: Login to Docker Hub
       uses: docker/login-action@v2
       with:
@@ -42,6 +66,10 @@ jobs:
     - name: Upload to Artifactory
       run: docker push your-artifactory-url/your-image-name
 
+  acr:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
     - name: Login to Azure Container Registry (ACR)
       uses: azure/docker-login@v1
       with:
@@ -54,7 +82,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: acr
     steps:
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
