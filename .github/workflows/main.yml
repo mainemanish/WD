@@ -29,30 +29,26 @@ jobs:
     - name: Build with Maven
       run: mvn clean install
 
-  run-tests:
+  sonar-nexus:
     runs-on: ubuntu-latest
     needs: build
-    steps:
-    - name: Run Unit Tests
-      run: mvn test
-
-  sonar-scan:
-    runs-on: ubuntu-latest
-    needs: run-tests
     steps:
     - name: SonarQube Scan
       run: mvn sonar:sonar -Dsonar.host.url=https://your-sonarqube-url
 
-  nexus-iq-scan:
-    runs-on: ubuntu-latest
-    needs: sonar-scan
-    steps:
     - name: Nexus IQ Scan
       run: mvn org.sonatype.plugins:nexus-iq-maven-plugin:check
 
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: sonar-nexus
+    steps:
+    - name: Run Unit Tests
+      run: mvn test
+
   docker:
     runs-on: ubuntu-latest
-    needs: nexus-iq-scan
+    needs: run-tests
     steps:
     - name: Login to Docker Hub
       uses: docker/login-action@v2
